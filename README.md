@@ -19,7 +19,7 @@ pi install git:github.com/rebehzat/pi-hardcode
 | `/hardcode config [key [value]]` | Shows or sets a value in `~/.pi/agent/hardcode.json`. `value` is parsed as JSON; `default` removes the key. |
 | `pi --hardcode` | Starts with HARDcode on. |
 
-While it is on, the status bar shows **💀 HARDcode** on a white background, with `HARD` in black and `code` in red. The same badge sits at the left end of the input box's top border (mirroring UltraCode's `⚡ultracode` on the right). HARDcode wraps whatever editor is installed, so the two badges coexist, and restores the original editor when turned off.
+While it is on, the status bar shows **💀 HARDcode** on a white background, with `HARD` in black and `code` in red. The same badge (without the background) sits at the left end of the input box's top border (mirroring UltraCode's `⚡ultracode` on the right). HARDcode wraps whatever editor is installed, so the two badges coexist, and restores the original editor when turned off.
 
 ## What happens when it's on
 

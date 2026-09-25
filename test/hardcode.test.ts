@@ -119,6 +119,8 @@ function fakePi() {
 	const lines = factory(null, null, null).render(40);
 	assert.match(lines[0], /^─.*💀.*HARD.*code/);
 	assert.equal(visibleWidth(lines[0]), 40);
+	assert.ok(!lines[0].includes("\x1b[48;"), "border badge has no background");
+	assert.ok(f.state.statuses.get("hardcode")!.includes("\x1b[48;2;255;255;255m"), "status bar stays white");
 	assert.equal(lines[1], "typed text");
 	await f.commands.get("hardcode").handler("off", ctx);
 	assert.equal(factory, ultracodeFactory, "original editor restored");

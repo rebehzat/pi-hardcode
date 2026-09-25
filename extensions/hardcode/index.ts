@@ -109,7 +109,8 @@ export default function hardcode(pi: ExtensionAPI) {
 				const lines = render(width);
 				if (!active || !lines.length) return lines;
 				const out = [...lines];
-				out[0] = withLeftBadge(out[0]!, statusText(cfg));
+				// Status bar keeps its background; the border badge uses the terminal's normal background.
+				out[0] = withLeftBadge(out[0]!, statusText({ ...cfg, statusBackground: "none" }));
 				return out;
 			};
 			return editor;
