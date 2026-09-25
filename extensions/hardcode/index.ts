@@ -288,7 +288,8 @@ export default function hardcode(pi: ExtensionAPI) {
 
 	// ── activation ──
 
-	function activate(ctx: ExtensionContext, persist: boolean): void {
+	/** `restoredBefore`: the pre-HARDcode thinking level saved in the session, when restoring on resume. */
+	function activate(ctx: ExtensionContext, persist: boolean, restoredBefore?: string): void {
 		if (active) return;
 		active = true;
 		cfg = loadConfig(ctx.cwd, ctx.isProjectTrusted());
@@ -299,17 +300,23 @@ export default function hardcode(pi: ExtensionAPI) {
 		if (cfg.thinking !== "keep") {
 			const current = pi.getThinkingLevel();
 			if (THINKING.indexOf(current) < THINKING.indexOf(cfg.thinking)) {
-				thinkingBefore = current;
+				thinkingBefore = restoredBefore ?? current;
 				pi.setThinkingLevel(cfg.thinking as any);
 				thinkingSet = pi.getThinkingLevel();
+			} else if (restoredBefore && restoredBefore !== current) {
+				// Resumed session already carries the raised level; remember what to go back to.
+				thinkingBefore = restoredBefore;
+				thinkingSet = current;
 			}
 		}
 		if (ctx.hasUI) ctx.ui.setStatus("hardcode", statusText(cfg));
 		installEditorBadge(ctx);
-		if (persist) pi.appendEntry(MODE_ENTRY, { on: true });
+		// Save the level to go back to, so turning HARDcode off after a resume restores it too.
+		if (persist) pi.appendEntry(MODE_ENTRY, { on: true, thinkingBefore });
 	}
 
-	function deactivate(ctx: ExtensionContext, persist: boolean): void {
+	/** `restoreThinking` is false when switching sessions: the new session brings its own thinking level. */
+	function deactivate(ctx: ExtensionContext, persist: boolean, restoreThinking = true): void {
 		if (!active) return;
 		active = false;
 		for (const off of unsubscribers) off();
@@ -318,7 +325,9 @@ export default function hardcode(pi: ExtensionAPI) {
 		pendingWorkflows.clear();
 		delete process.env[AGENTS_ENV];
 		// Put thinking back only if nobody changed it since and UltraCode isn't relying on it.
-		if (thinkingBefore && pi.getThinkingLevel() === thinkingSet && !ultracodeOn(ctx)) pi.setThinkingLevel(thinkingBefore as any);
+		if (restoreThinking && thinkingBefore && pi.getThinkingLevel() === thinkingSet && !ultracodeOn(ctx)) {
+			pi.setThinkingLevel(thinkingBefore as any);
+		}
 		thinkingBefore = thinkingSet = undefined;
 		if (ctx.hasUI) {
 			ctx.ui.setStatus("hardcode", undefined);
@@ -444,15 +453,19 @@ export default function hardcode(pi: ExtensionAPI) {
 
 	pi.on("session_start", (event, ctx) => {
 		let restored: boolean | undefined;
+		let restoredBefore: string | undefined;
 		if (event.reason === "resume" || event.reason === "fork" || event.reason === "reload") {
 			for (const e of ctx.sessionManager.getBranch() as any[]) {
-				if (e?.type === "custom" && e.customType === MODE_ENTRY) restored = !!e.data?.on;
+				if (e?.type === "custom" && e.customType === MODE_ENTRY) {
+					restored = !!e.data?.on;
+					restoredBefore = e.data?.thinkingBefore;
+				}
 			}
 		}
 		const want = restored ?? (!!pi.getFlag("hardcode") || loadConfig(ctx.cwd, ctx.isProjectTrusted()).enabled);
-		if (active) deactivate(ctx, false);
+		if (active) deactivate(ctx, false, false);
 		if (want) {
-			activate(ctx, false);
+			activate(ctx, false, restored ? restoredBefore : undefined);
 			// Other extensions (UltraCode) install their editor in session_start too; wrap it once they have.
 			if (ctx.mode === "tui") {
 				removeEditorBadge(ctx);

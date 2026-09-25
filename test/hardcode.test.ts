@@ -87,14 +87,25 @@ function fakePi() {
 	assert.equal(f.state.thinking, "medium", "thinking restored");
 	assert.equal(process.env.PI_HARDCODE_AGENTS, undefined);
 
-	// Restored from the session on resume.
+	// Restored from the session on resume (new process; pi restores the session's saved xhigh level).
 	await f.commands.get("hardcode").handler("on", f.ctx(tmp));
 	const f2 = fakePi();
 	f2.state.entries.push(...f.state.entries);
+	f2.state.thinking = "xhigh";
 	hardcode(f2.pi);
 	await f2.emit("session_start", { reason: "resume" }, f2.ctx(tmp));
 	assert.ok(f2.active().includes("agent_before_settle"), "mode restored on resume");
+	await f2.commands.get("hardcode").handler("off", f2.ctx(tmp));
+	assert.equal(f2.state.thinking, "medium", "turning off after resume restores the pre-HARDcode level");
+
+	// Switching to another session in-process must not overwrite that session's thinking level.
 	await f.commands.get("hardcode").handler("off", f.ctx(tmp));
+	await f.commands.get("hardcode").handler("on", f.ctx(tmp));
+	f.state.thinking = "high"; // the other session's saved level, applied by pi before session_start
+	const otherSession: any[] = [];
+	await f.emit("session_start", { reason: "resume" }, { ...f.ctx(tmp), sessionManager: { getBranch: () => otherSession } });
+	assert.equal(f.state.thinking, "high", "other session keeps its own level");
+	assert.deepEqual(f.active(), ["session_shutdown", "session_start"], "HARDcode off in a session that never enabled it");
 	await f2.emit("session_shutdown", {}, f2.ctx(tmp));
 }
 
