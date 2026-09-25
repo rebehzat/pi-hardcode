@@ -1,0 +1,30 @@
+{
+  "name": "pi-hardcode",
+  "version": "0.1.0",
+  "description": "HARDcode for pi: a composable maximum-effort mode — investigate first, implement completely, auto-run checks, fix/retry with limits, optional fresh reviewer, and only claim success with evidence. Works alone or with pi-ultracode.",
+  "type": "module",
+  "keywords": ["pi-package", "pi-extension", "verification", "testing", "hardcode", "ultracode"],
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/rebehzat/pi-hardcode" },
+  "pi": {
+    "extensions": ["extensions/hardcode/index.ts"]
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types test/hardcode.test.ts"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": { "optional": true },
+    "@earendil-works/pi-tui": { "optional": true }
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "latest",
+    "@earendil-works/pi-tui": "latest",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}
