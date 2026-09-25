@@ -43,8 +43,8 @@ export interface HardcodeConfig {
 	maxReviewRounds: number;
 	/** Depth policy inside UltraCode workflow agents: "policy" (prompt only) or "off". */
 	workflowAgents: "policy" | "off";
-	/** Optional status background, e.g. "#ffd84d". The text is always "HARD" in black and "code" in red. */
-	statusBackground?: string;
+	/** Status background: a hex color like "#ffffff", or "none". The text is always 💀 "HARD" in black and "code" in red. */
+	statusBackground: string;
 }
 
 export const DEFAULTS: HardcodeConfig = {
@@ -64,6 +64,7 @@ export const DEFAULTS: HardcodeConfig = {
 	reviewerThinking: "high",
 	maxReviewRounds: 1,
 	workflowAgents: "policy",
+	statusBackground: "#ffffff",
 };
 
 export const GLOBAL_CONFIG_PATH = path.join(getAgentDir(), "hardcode.json");
@@ -85,8 +86,8 @@ export function loadConfig(cwd?: string, projectTrusted = false): HardcodeConfig
 
 /** Set one key in the global config file. Values are parsed as JSON when possible. */
 export function setGlobalConfig(key: string, raw: string): { ok: true; value: unknown } | { ok: false; error: string } {
-	if (!(key in DEFAULTS) && key !== "reviewerModel" && key !== "statusBackground") {
-		return { ok: false, error: `unknown key "${key}". Keys: ${[...Object.keys(DEFAULTS), "reviewerModel", "statusBackground"].join(", ")}` };
+	if (!(key in DEFAULTS) && key !== "reviewerModel") {
+		return { ok: false, error: `unknown key "${key}". Keys: ${[...Object.keys(DEFAULTS), "reviewerModel"].join(", ")}` };
 	}
 	let value: unknown = raw;
 	try {

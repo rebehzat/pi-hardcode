@@ -19,7 +19,7 @@ pi install git:github.com/rebehzat/pi-hardcode
 | `/hardcode config [key [value]]` | Shows or sets a value in `~/.pi/agent/hardcode.json`. `value` is parsed as JSON; `default` removes the key. |
 | `pi --hardcode` | Starts with HARDcode on. |
 
-While it is on, the status bar shows **HARDcode**, with `HARD` in black and `code` in red.
+While it is on, the status bar shows **💀 HARDcode** on a white background, with `HARD` in black and `code` in red.
 
 ## What happens when it's on
 
@@ -69,7 +69,7 @@ With HARDcode disabled, no policy hooks, prompt text, tools, editor changes or s
 | `reviewerThinking` | `"high"` | |
 | `maxReviewRounds` | `1` | |
 | `workflowAgents` | `"policy"` | Depth policy inside UltraCode workflow agents, or `"off"`. |
-| `statusBackground` | none | Background for the status label, e.g. `"#ffd84d"`. Useful on dark terminals. |
+| `statusBackground` | `"#ffffff"` | Background for the status label: any hex color, or `"none"` for no background. |
 
 Auto-run checks run with `CI=1` (so test runners don't start watch mode), in their own process group, killed on timeout or when you abort.
 

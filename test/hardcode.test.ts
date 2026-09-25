@@ -73,7 +73,11 @@ function fakePi() {
 
 	await f.commands.get("hardcode").handler("on", f.ctx(tmp));
 	assert.deepEqual(f.active(), ["agent_before_settle", "before_agent_start", "input", "message_end", "session_shutdown", "session_start", "tool_result"]);
-	assert.equal(f.state.statuses.get("hardcode"), "\x1b[30mHARD\x1b[31mcode\x1b[39m", "HARD in black, code in red");
+	assert.equal(
+		f.state.statuses.get("hardcode"),
+		"\x1b[48;2;255;255;255m 💀 \x1b[30mHARD\x1b[31mcode\x1b[39m \x1b[49m",
+		"white background, 💀, HARD in black, code in red",
+	);
 	assert.equal(f.state.thinking, "xhigh");
 	assert.equal(process.env.PI_HARDCODE_AGENTS, "policy");
 

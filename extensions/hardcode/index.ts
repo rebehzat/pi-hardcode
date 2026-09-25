@@ -32,10 +32,10 @@ const EDIT_TOOLS = new Set(["edit", "write", "multi_edit", "apply_patch", "noteb
 const THINKING = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
 
 function statusText(cfg: HardcodeConfig): string {
+	// White background by default ("none" turns it off); 💀 then "HARD" in black and "code" in red.
 	const hex = /^#?([0-9a-f]{6})$/i.exec(cfg.statusBackground ?? "")?.[1];
 	const bg = hex ? `\x1b[48;2;${parseInt(hex.slice(0, 2), 16)};${parseInt(hex.slice(2, 4), 16)};${parseInt(hex.slice(4, 6), 16)}m` : "";
-	// "HARD" in black, "code" in red.
-	return `${bg}\x1b[30mHARD\x1b[31mcode\x1b[39m${bg ? "\x1b[49m" : ""}`;
+	return `${bg} 💀 \x1b[30mHARD\x1b[31mcode\x1b[39m ${bg ? "\x1b[49m" : ""}`;
 }
 
 function lastAssistantText(messages: any[]): string {
@@ -341,7 +341,7 @@ export default function hardcode(pi: ExtensionAPI) {
 		getArgumentCompletions: (prefix) => {
 			const [sub, key] = prefix.split(/\s+/);
 			if (sub === "config" && key !== undefined) {
-				return Object.keys({ ...DEFAULTS, reviewerModel: 0, statusBackground: 0 })
+				return Object.keys({ ...DEFAULTS, reviewerModel: 0 })
 					.filter((k) => k.startsWith(key))
 					.map((k) => ({ value: `config ${k} `, label: k }));
 			}
