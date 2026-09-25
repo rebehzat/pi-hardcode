@@ -46,6 +46,34 @@ Aborted or errored runs are never gated.
 
 With HARDcode disabled, no policy hooks, prompt text, tools, editor changes or status are installed, and no environment variable is set. The hooks are subscribed when you turn it on and unsubscribed when you turn it off. What stays registered is `/hardcode`, the `--hardcode` flag, renderers for HARDcode's own transcript entries, and session start and shutdown listeners that restore the mode. The test suite asserts this.
 
+## 🌸 SoftCode
+
+The same package includes **SoftCode**, HARDcode's opposite: a light-touch mode for quick, cheap work. It needs HARDcode off; turning one on while the other is on is refused with a message.
+
+| | |
+|---|---|
+| `/softcode` | Toggle it. `/softcode on`, `/softcode off`, `/softcode status`, `/softcode config [key [value]]` work like HARDcode's. Restored when you resume the session. |
+| `pi --softcode` | Starts with SoftCode on. |
+
+While it is on:
+
+- **Light-touch policy:** read only the files the task needs, make the smallest change that does the job (no refactors, renames or unrequested tests), verify with at most one quick targeted check, and keep answers short. It still flags risky or unclear things in a line.
+- **Explains as it goes:** one short sentence before each tool call saying what and why, and one or two sentences after each file change. Turn it off with `explain: false`.
+- **Lower thinking:** thinking drops to at most `low` (never raised) and goes back when SoftCode is turned off.
+- **With UltraCode:** the main agent keeps workflows small, and workflow agents get a short light-touch policy (`PI_SOFTCODE_AGENTS=policy`).
+- **Status:** **🌸 SoftCode** in pink in the status bar and at the left end of the input box's border.
+
+Off means off here too: only `/softcode`, `--softcode`, and the session start and shutdown listeners stay registered.
+
+`~/.pi/agent/softcode.json` (a trusted project's `.pi/softcode.json` overrides it):
+
+| Key | Default | |
+|---|---|---|
+| `enabled` | `false` | Start every session with SoftCode on (skipped if HARDcode is on). |
+| `thinking` | `"low"` | Lower thinking to at most this level: `off`, `minimal`, `low`, `medium`, or `keep` to leave it alone. |
+| `explain` | `true` | Explain each step and change in plain language. |
+| `workflowAgents` | `"policy"` | Light-touch policy inside UltraCode workflow agents, or `"off"`. |
+
 ## Config
 
 `~/.pi/agent/hardcode.json` (all keys optional). A trusted project's `.pi/hardcode.json` overrides it.
@@ -78,7 +106,7 @@ Auto-run checks run with `CI=1` (so test runners don't start watch mode), in the
 ```bash
 npm install
 npm run typecheck
-npm test        # off-means-off, classification, detection, and the gate against a real temp git repo
+npm test        # off-means-off (HARDcode and SoftCode), classification, detection, and the gate against a real temp git repo
 pi --no-extensions -e ./extensions/hardcode   # try it in isolation
 ```
 

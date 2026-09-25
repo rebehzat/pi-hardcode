@@ -1,9 +1,9 @@
 {
   "name": "pi-hardcode",
   "version": "0.1.0",
-  "description": "HARDcode for pi: a composable maximum-effort mode — investigate first, implement completely, auto-run checks, fix/retry with limits, optional fresh reviewer, and only claim success with evidence. Works alone or with pi-ultracode.",
+  "description": "HARDcode for pi: a composable maximum-effort mode — investigate first, implement completely, auto-run checks, fix/retry with limits, optional fresh reviewer, and only claim success with evidence. Works alone or with pi-ultracode. Also includes 🌸 SoftCode, the light-touch opposite.",
   "type": "module",
-  "keywords": ["pi-package", "pi-extension", "verification", "testing", "hardcode", "ultracode"],
+  "keywords": ["pi-package", "pi-extension", "verification", "testing", "hardcode", "softcode", "ultracode"],
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/rebehzat/pi-hardcode" },
   "pi": {

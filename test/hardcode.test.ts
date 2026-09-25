@@ -147,6 +147,72 @@ function fakePi() {
 	assert.equal(factory, ultracodeFactory, "original editor restored");
 }
 
+// 🌸 SoftCode: off means off, lowers thinking, mutually exclusive with HARDcode.
+{
+	const f = fakePi();
+	hardcode(f.pi);
+	await f.emit("session_start", { reason: "startup" }, f.ctx(tmp));
+	assert.deepEqual(f.active(), ["session_shutdown", "session_start"]);
+	assert.equal(f.state.statuses.size, 0);
+
+	await f.commands.get("softcode").handler("on", f.ctx(tmp));
+	assert.deepEqual(f.active(), ["before_agent_start", "session_shutdown", "session_start"]);
+	assert.equal(f.state.statuses.get("softcode"), " 🌸 \x1b[38;2;255;182;193mSoft\x1b[38;2;255;105;180mCode\x1b[39m ");
+	assert.equal(f.state.thinking, "low", "thinking lowered to low");
+	assert.equal(process.env.PI_SOFTCODE_AGENTS, "policy");
+	const ev = { systemPromptOptions: { appendSystemPrompt: "" } };
+	await f.emit("before_agent_start", ev, f.ctx(tmp));
+	assert.match(ev.systemPromptOptions.appendSystemPrompt, /SoftCode — light-touch mode/);
+	assert.match(ev.systemPromptOptions.appendSystemPrompt, /Explain as you go/);
+
+	await f.commands.get("hardcode").handler("on", f.ctx(tmp));
+	assert.ok(!f.active().includes("agent_before_settle"), "HARDcode refuses while SoftCode is on");
+	assert.match(f.state.notes.at(-1)!, /softcode off/);
+
+	// Resume restores SoftCode and its pre-SoftCode thinking level.
+	const f2 = fakePi();
+	f2.state.entries.push(...f.state.entries);
+	f2.state.thinking = "low";
+	hardcode(f2.pi);
+	await f2.emit("session_start", { reason: "resume" }, f2.ctx(tmp));
+	assert.equal(f2.state.statuses.get("softcode") !== undefined, true, "SoftCode restored on resume");
+	await f2.commands.get("softcode").handler("off", f2.ctx(tmp));
+	assert.equal(f2.state.thinking, "medium", "off after resume restores the level");
+	await f2.emit("session_shutdown", {}, f2.ctx(tmp));
+
+	await f.commands.get("softcode").handler("off", f.ctx(tmp));
+	assert.deepEqual(f.active(), ["session_shutdown", "session_start"], "all SoftCode hooks removed");
+	assert.equal(f.state.statuses.get("softcode"), undefined);
+	assert.equal(f.state.thinking, "medium", "thinking restored");
+	assert.equal(process.env.PI_SOFTCODE_AGENTS, undefined);
+
+	// Never raises thinking.
+	f.state.thinking = "minimal";
+	await f.commands.get("softcode").handler("on", f.ctx(tmp));
+	assert.equal(f.state.thinking, "minimal");
+	await f.commands.get("softcode").handler("off", f.ctx(tmp));
+
+	await f.commands.get("hardcode").handler("on", f.ctx(tmp));
+	await f.commands.get("softcode").handler("on", f.ctx(tmp));
+	assert.equal(f.state.statuses.get("softcode"), undefined, "SoftCode refuses while HARDcode is on");
+	assert.match(f.state.notes.at(-1)!, /needs HARDcode off/);
+	await f.commands.get("hardcode").handler("off", f.ctx(tmp));
+	await f.emit("session_shutdown", {}, f.ctx(tmp));
+}
+
+// Inside a workflow agent: SoftCode's light policy when the parent asked for it.
+{
+	process.env.PI_ULTRACODE_DEPTH = "1";
+	process.env.PI_SOFTCODE_AGENTS = "policy";
+	const g = fakePi();
+	hardcode(g.pi);
+	const ev = { systemPromptOptions: { appendSystemPrompt: "" } };
+	await g.emit("before_agent_start", ev, g.ctx(tmp));
+	assert.match(ev.systemPromptOptions.appendSystemPrompt, /SoftCode \(workflow agent\)/);
+	delete process.env.PI_ULTRACODE_DEPTH;
+	delete process.env.PI_SOFTCODE_AGENTS;
+}
+
 // Inside a workflow agent: nothing unless the parent asked for the policy.
 {
 	process.env.PI_ULTRACODE_DEPTH = "1";

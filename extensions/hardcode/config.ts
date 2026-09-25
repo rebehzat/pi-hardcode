@@ -69,7 +69,7 @@ export const DEFAULTS: HardcodeConfig = {
 
 export const GLOBAL_CONFIG_PATH = path.join(getAgentDir(), "hardcode.json");
 
-function readJson(file: string): Partial<HardcodeConfig> {
+export function readJson(file: string): Record<string, unknown> {
 	try {
 		const data = JSON.parse(fs.readFileSync(file, "utf8"));
 		return data && typeof data === "object" && !Array.isArray(data) ? data : {};
@@ -79,28 +79,43 @@ function readJson(file: string): Partial<HardcodeConfig> {
 }
 
 export function loadConfig(cwd?: string, projectTrusted = false): HardcodeConfig {
-	const merged = { ...DEFAULTS, ...readJson(GLOBAL_CONFIG_PATH) };
+	const merged = { ...DEFAULTS, ...readJson(GLOBAL_CONFIG_PATH) } as HardcodeConfig;
 	if (cwd && projectTrusted) Object.assign(merged, readJson(path.join(cwd, ".pi", "hardcode.json")));
 	return merged;
 }
 
-/** Set one key in the global config file. Values are parsed as JSON when possible. */
-export function setGlobalConfig(key: string, raw: string): { ok: true; value: unknown } | { ok: false; error: string } {
-	if (!(key in DEFAULTS) && key !== "reviewerModel") {
-		return { ok: false, error: `unknown key "${key}". Keys: ${[...Object.keys(DEFAULTS), "reviewerModel"].join(", ")}` };
+/**
+ * Set one key in a JSON config file, type-checked against `defaults`. Values are parsed as JSON
+ * when possible; "default" removes the key. `optional` lists keys without a default value.
+ */
+export function setConfigKey(
+	file: string,
+	defaults: object,
+	optional: string[],
+	key: string,
+	raw: string,
+): { ok: true; value: unknown } | { ok: false; error: string } {
+	const d = defaults as Record<string, unknown>;
+	if (!(key in d) && !optional.includes(key)) {
+		return { ok: false, error: `unknown key "${key}". Keys: ${[...Object.keys(d), ...optional].join(", ")}` };
 	}
 	let value: unknown = raw;
 	try {
 		value = JSON.parse(raw);
 	} catch {}
-	const expected = typeof (DEFAULTS as any)[key];
-	if (key in DEFAULTS && expected !== "undefined" && typeof value !== expected && !(Array.isArray((DEFAULTS as any)[key]) && Array.isArray(value))) {
-		return { ok: false, error: `"${key}" expects a ${Array.isArray((DEFAULTS as any)[key]) ? "JSON array" : expected}` };
+	const expected = typeof d[key];
+	if (raw !== "default" && key in d && typeof value !== expected && !(Array.isArray(d[key]) && Array.isArray(value))) {
+		return { ok: false, error: `"${key}" expects a ${Array.isArray(d[key]) ? "JSON array" : expected}` };
 	}
-	const current = readJson(GLOBAL_CONFIG_PATH) as Record<string, unknown>;
+	const current = readJson(file);
 	if (raw === "default") delete current[key];
 	else current[key] = value;
-	fs.mkdirSync(path.dirname(GLOBAL_CONFIG_PATH), { recursive: true });
-	fs.writeFileSync(GLOBAL_CONFIG_PATH, `${JSON.stringify(current, null, 2)}\n`);
-	return { ok: true, value: raw === "default" ? (DEFAULTS as any)[key] : value };
+	fs.mkdirSync(path.dirname(file), { recursive: true });
+	fs.writeFileSync(file, `${JSON.stringify(current, null, 2)}\n`);
+	return { ok: true, value: raw === "default" ? d[key] : value };
+}
+
+/** Set one key in the global HARDcode config file. */
+export function setGlobalConfig(key: string, raw: string): { ok: true; value: unknown } | { ok: false; error: string } {
+	return setConfigKey(GLOBAL_CONFIG_PATH, DEFAULTS, ["reviewerModel"], key, raw);
 }

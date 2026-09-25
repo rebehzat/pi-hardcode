@@ -13,15 +13,20 @@
  * With UltraCode: workflows supply the breadth; HARDcode waits while a workflow
  * runs, then pushes its combined result through the same verification cycle.
  * Workflow agents get a light depth policy through the PI_HARDCODE_AGENTS env var.
+ *
+ * The package also provides 🌸 SoftCode (softcode.ts), the light-touch opposite;
+ * the two modes are mutually exclusive.
  */
 
-import { CustomEditor, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Text, visibleWidth } from "@earendil-works/pi-tui";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
+import { leftBadgeEditor, withLeftBadge } from "./badge.ts";
 import { classifyCommand, detectCommands, fingerprint, gitRoot, runCheck, workingDiff } from "./checks.ts";
 import { DEFAULTS, GLOBAL_CONFIG_PATH, type HardcodeConfig, loadConfig, setGlobalConfig } from "./config.ts";
 import { checksSummary, Cycle, currentResults, decide } from "./gate.ts";
 import { mainPolicy, WORKFLOW_AGENT_POLICY } from "./policy.ts";
 import { CHILD_ENV, runReviewer } from "./reviewer.ts";
+import { SOFTCODE_AGENT_POLICY, SOFTCODE_AGENTS_ENV, softcode } from "./softcode.ts";
 
 const MODE_ENTRY = "hardcode-mode";
 const GATE_MESSAGE = "hardcode-gate";
@@ -38,19 +43,7 @@ function statusText(cfg: HardcodeConfig): string {
 	return `${bg} 💀 \x1b[30mHARD\x1b[31mcode\x1b[39m ${bg ? "\x1b[49m" : ""}`;
 }
 
-type EditorFactory = NonNullable<ReturnType<ExtensionContext["ui"]["getEditorComponent"]>>;
-
-/**
- * Overlay the badge on the leading run of border characters of the editor's top line,
- * keeping the visible width exact (pi-tui aborts on over-wide lines).
- */
-export function withLeftBadge(line: string, badge: string): string {
-	const run = visibleWidth(badge) + 2;
-	const m = new RegExp(`^((?:\\x1b\\[[0-9;]*m)*)(─{${run}})`).exec(line);
-	if (!m) return line;
-	const borderColor = m[1] ?? "";
-	return `${borderColor}─${badge}${borderColor}─${line.slice(m[0].length)}`;
-}
+export { withLeftBadge };
 
 function lastAssistantText(messages: any[]): string {
 	for (let i = messages.length - 1; i >= 0; i--) {
@@ -77,9 +70,11 @@ export default function hardcode(pi: ExtensionAPI) {
 
 	// Inside an UltraCode workflow agent: only the light depth policy, and only when the parent asked for it.
 	if (Number(process.env.PI_ULTRACODE_DEPTH ?? 0) > 0) {
-		if (process.env[AGENTS_ENV] === "policy") {
+		const policy =
+			process.env[AGENTS_ENV] === "policy" ? WORKFLOW_AGENT_POLICY : process.env[SOFTCODE_AGENTS_ENV] === "policy" ? SOFTCODE_AGENT_POLICY : undefined;
+		if (policy) {
 			pi.on("before_agent_start", (event) => {
-				event.systemPromptOptions.appendSystemPrompt = `${event.systemPromptOptions.appendSystemPrompt ?? ""}\n${WORKFLOW_AGENT_POLICY}`;
+				event.systemPromptOptions.appendSystemPrompt = `${event.systemPromptOptions.appendSystemPrompt ?? ""}\n${policy}`;
 				return undefined;
 			});
 		}
@@ -94,36 +89,13 @@ export default function hardcode(pi: ExtensionAPI) {
 	let thinkingBefore: string | undefined;
 	let thinkingSet: string | undefined;
 	let lastDecision: string | undefined;
-	// Editor badge: we wrap whatever editor is installed (e.g. UltraCode's) and restore it when turned off.
-	let editorBefore: EditorFactory | undefined;
-	let editorOurs: EditorFactory | undefined;
-
-	function installEditorBadge(ctx: ExtensionContext): void {
-		if (ctx.mode !== "tui" || !active || editorOurs) return;
-		const inner = ctx.ui.getEditorComponent();
-		editorBefore = inner;
-		editorOurs = (tui, theme, keybindings) => {
-			const editor = inner ? inner(tui, theme, keybindings) : new CustomEditor(tui, theme, keybindings);
-			const render = editor.render.bind(editor);
-			editor.render = (width: number) => {
-				const lines = render(width);
-				if (!active || !lines.length) return lines;
-				const out = [...lines];
-				// Status bar keeps its background; the border badge uses the terminal's normal background.
-				out[0] = withLeftBadge(out[0]!, statusText({ ...cfg, statusBackground: "none" }));
-				return out;
-			};
-			return editor;
-		};
-		ctx.ui.setEditorComponent(editorOurs);
-	}
-
-	function removeEditorBadge(ctx: ExtensionContext): void {
-		if (!editorOurs) return;
-		// Only put the old editor back if nobody replaced ours in the meantime.
-		if (ctx.mode === "tui" && ctx.ui.getEditorComponent() === editorOurs) ctx.ui.setEditorComponent(editorBefore);
-		editorOurs = editorBefore = undefined;
-	}
+	// Editor badge: wraps whatever editor is installed (e.g. UltraCode's) and restores it when turned off.
+	// Status bar keeps its background; the border badge uses the terminal's normal background.
+	const badge = leftBadgeEditor(() => (active ? statusText({ ...cfg, statusBackground: "none" }) : undefined));
+	const installEditorBadge = (ctx: ExtensionContext) => {
+		if (active) badge.install(ctx);
+	};
+	const removeEditorBadge = (ctx: ExtensionContext) => badge.remove(ctx);
 
 	const commandsFor = (ctx: ExtensionContext): string[] =>
 		cfg.verifyCommands.length ? cfg.verifyCommands : detectCommands(gitRoot(ctx.cwd) ?? ctx.cwd);
@@ -391,6 +363,15 @@ export default function hardcode(pi: ExtensionAPI) {
 		return lines.join("\n");
 	}
 
+	function turnOn(ctx: ExtensionContext): void {
+		if (soft.isActive()) {
+			ctx.ui.notify(`${LABEL} and SoftCode can't both be on. Run /softcode off first.`, "warning");
+			return;
+		}
+		activate(ctx, true);
+		ctx.ui.notify(`${LABEL} on`, "info");
+	}
+
 	pi.registerCommand("hardcode", {
 		description: "HARDcode maximum-effort mode: /hardcode [on|off|status|config [key value]]",
 		getArgumentCompletions: (prefix) => {
@@ -406,17 +387,17 @@ export default function hardcode(pi: ExtensionAPI) {
 			const [sub = "", key, ...rest] = args.trim().split(/\s+/);
 			switch (sub.toLowerCase()) {
 				case "on":
-					activate(ctx, true);
-					ctx.ui.notify(`${LABEL} on`, "info");
+					turnOn(ctx);
 					return;
 				case "off":
 					deactivate(ctx, true);
 					ctx.ui.notify(`${LABEL} off`, "info");
 					return;
 				case "":
-					if (active) deactivate(ctx, true);
-					else activate(ctx, true);
-					ctx.ui.notify(`${LABEL} ${active ? "on" : "off"}`, "info");
+					if (active) {
+						deactivate(ctx, true);
+						ctx.ui.notify(`${LABEL} off`, "info");
+					} else turnOn(ctx);
 					return;
 				case "status":
 					ctx.ui.notify(statusReport(ctx), "info");
@@ -481,4 +462,7 @@ export default function hardcode(pi: ExtensionAPI) {
 		active = false;
 		delete process.env[AGENTS_ENV];
 	});
+
+	// 🌸 SoftCode: the light-touch opposite, registered after HARDcode's session_start so it sees HARDcode's state.
+	const soft = softcode(pi, () => active);
 }
