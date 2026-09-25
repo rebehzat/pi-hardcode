@@ -78,14 +78,23 @@ function fakePi() {
 		"\x1b[48;2;255;255;255m 💀 \x1b[30mHARD\x1b[31mcode\x1b[39m \x1b[49m",
 		"white background, 💀, HARD in black, code in red",
 	);
-	assert.equal(f.state.thinking, "xhigh");
+	assert.equal(f.state.thinking, "medium", "default: thinking stays where it is");
 	assert.equal(process.env.PI_HARDCODE_AGENTS, "policy");
 
 	await f.commands.get("hardcode").handler("off", f.ctx(tmp));
 	assert.deepEqual(f.active(), ["session_shutdown", "session_start"], "all policy hooks removed");
 	assert.equal(f.state.statuses.get("hardcode"), undefined);
-	assert.equal(f.state.thinking, "medium", "thinking restored");
+	assert.equal(f.state.thinking, "medium", "thinking untouched");
 	assert.equal(process.env.PI_HARDCODE_AGENTS, undefined);
+
+	// Opt-in: with "thinking": "xhigh" configured, HARDcode raises it and restores it afterwards.
+	const cfgFile = path.join(process.env.PI_CODING_AGENT_DIR!, "hardcode.json");
+	fs.mkdirSync(path.dirname(cfgFile), { recursive: true });
+	fs.writeFileSync(cfgFile, JSON.stringify({ thinking: "xhigh" }));
+	await f.commands.get("hardcode").handler("on", f.ctx(tmp));
+	assert.equal(f.state.thinking, "xhigh");
+	await f.commands.get("hardcode").handler("off", f.ctx(tmp));
+	assert.equal(f.state.thinking, "medium", "thinking restored");
 
 	// Restored from the session on resume (new process; pi restores the session's saved xhigh level).
 	await f.commands.get("hardcode").handler("on", f.ctx(tmp));
@@ -107,6 +116,7 @@ function fakePi() {
 	assert.equal(f.state.thinking, "high", "other session keeps its own level");
 	assert.deepEqual(f.active(), ["session_shutdown", "session_start"], "HARDcode off in a session that never enabled it");
 	await f2.emit("session_shutdown", {}, f2.ctx(tmp));
+	fs.rmSync(cfgFile);
 }
 
 // Editor badge: wraps the existing editor at the left of its top border, restored when off.

@@ -23,7 +23,7 @@ While it is on, the status bar shows **💀 HARDcode** on a white background, wi
 
 ## What happens when it's on
 
-1. **Policy.** HARDcode appends rules to the system prompt: investigate the code paths, callers, tests and build first; implement completely (no stubs or TODOs); add tests; never weaken or skip checks, and never mask exit codes; diagnose failures rather than retrying blindly; hunt for regressions; finish with an **Evidence** section. It also raises thinking to at least `xhigh`, and never lowers it.
+1. **Policy.** HARDcode appends rules to the system prompt: investigate the code paths, callers, tests and build first; implement completely (no stubs or TODOs); add tests; never weaken or skip checks, and never mask exit codes; diagnose failures rather than retrying blindly; hunt for regressions; finish with an **Evidence** section. Your thinking level is left as it is, unless you set the `thinking` config key.
 2. **Gate.** When the agent finishes a run that changed files (detected with a git working-tree fingerprint, or from edit tool calls outside git), HARDcode steps in before pi settles:
    - **Run checks.** It runs the project's checks itself, detected from package scripts (typecheck → lint → build → test), Cargo, Go, pytest/ruff/mypy, or a Makefile. It runs them once per state of the code and stops at the first failure.
    - **Failure → fix.** Failing output goes back to the agent with instructions to diagnose and fix. If the identical failure repeats, the agent is told its approach isn't working.
@@ -53,7 +53,7 @@ With HARDcode disabled, no policy hooks, prompt text, tools, editor changes or s
 | Key | Default | |
 |---|---|---|
 | `enabled` | `false` | Start every session with HARDcode on. |
-| `thinking` | `"xhigh"` | Minimum thinking level while on: `keep`, `high`, `xhigh` or `max`. |
+| `thinking` | `"keep"` | `keep` leaves your thinking level alone. `high`, `xhigh` or `max` raise it to at least that level while HARDcode is on, and never lower it. |
 | `verify` | `"auto"` | `auto`: HARDcode runs the checks. `agent`: the agent must run them. `off`: the prompt policy only. |
 | `verifyCommands` | `[]` | Explicit checks, e.g. `["npm run typecheck","npm test"]`. Empty means detect them. |
 | `commandTimeoutSec` | `900` | Timeout for each auto-run check. |

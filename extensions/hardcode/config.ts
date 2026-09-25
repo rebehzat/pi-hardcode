@@ -10,7 +10,7 @@ import { getAgentDir } from "@earendil-works/pi-coding-agent";
 export interface HardcodeConfig {
 	/** Start every session with HARDcode on. */
 	enabled: boolean;
-	/** Minimum thinking level while on ("keep" leaves it alone). Never lowers the current level. */
+	/** Thinking level while on. Default "keep" leaves your current level alone; a level raises it to at least that (never lowers). */
 	thinking: "keep" | "high" | "xhigh" | "max";
 	/**
 	 * How verification happens when the work changed files:
@@ -49,7 +49,7 @@ export interface HardcodeConfig {
 
 export const DEFAULTS: HardcodeConfig = {
 	enabled: false,
-	thinking: "xhigh",
+	thinking: "keep",
 	verify: "auto",
 	verifyCommands: [],
 	commandTimeoutSec: 900,
