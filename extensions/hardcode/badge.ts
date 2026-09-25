@@ -21,10 +21,27 @@ export function withLeftBadge(line: string, badge: string): string {
 	return `${borderColor}─${badge}${borderColor}─${line.slice(m[0].length)}`;
 }
 
-/** `badge()` returns the badge to draw, or undefined to draw nothing. */
-export function leftBadgeEditor(badge: () => string | undefined) {
+/**
+ * `badge()` returns the badge to draw, or undefined to draw nothing. `thinkingLevel()` is the
+ * session's current level: when an editor is swapped in, pi copies the border colour from its
+ * hidden default editor, which is stale if the thinking level changed while another editor was
+ * showing, so we recolour the new editor ourselves.
+ */
+export function leftBadgeEditor(badge: () => string | undefined, thinkingLevel: () => string) {
 	let before: EditorFactory | undefined;
 	let ours: EditorFactory | undefined;
+	let created: any;
+
+	/** Swap in `factory` and give the editor it creates the border colour for the current thinking level. */
+	function swap(ctx: ExtensionContext, factory: EditorFactory): void {
+		created = undefined;
+		ctx.ui.setEditorComponent(factory);
+		try {
+			if (created && "borderColor" in created) created.borderColor = ctx.ui.theme.getThinkingBorderColor((thinkingLevel() || "off") as any);
+		} catch {}
+		created = undefined;
+	}
+
 	return {
 		install(ctx: ExtensionContext): void {
 			if (ctx.mode !== "tui" || ours) return;
@@ -41,14 +58,20 @@ export function leftBadgeEditor(badge: () => string | undefined) {
 					out[0] = withLeftBadge(out[0]!, b);
 					return out;
 				};
+				created = editor;
 				return editor;
 			};
-			ctx.ui.setEditorComponent(ours);
+			swap(ctx, ours);
 		},
 		remove(ctx: ExtensionContext): void {
 			if (!ours) return;
 			// Only put the old editor back if nobody replaced ours in the meantime.
-			if (ctx.mode === "tui" && ctx.ui.getEditorComponent() === ours) ctx.ui.setEditorComponent(before);
+			if (ctx.mode === "tui" && ctx.ui.getEditorComponent() === ours) {
+				const inner = before;
+				// Re-wrapped only to reach the new instance for its colour; with no previous custom editor, pi's own default comes back.
+				if (inner) swap(ctx, (tui, theme, keybindings) => (created = inner(tui, theme, keybindings)));
+				else ctx.ui.setEditorComponent(undefined);
+			}
 			ours = before = undefined;
 		},
 	};

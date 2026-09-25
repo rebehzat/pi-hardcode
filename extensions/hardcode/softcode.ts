@@ -80,7 +80,10 @@ export function softcode(pi: ExtensionAPI, hardcodeOn: () => boolean): { isActiv
 	let unsubscribers: (() => void)[] = [];
 	let thinkingBefore: string | undefined;
 	let thinkingSet: string | undefined;
-	const badge = leftBadgeEditor(() => (active ? SOFTCODE_STATUS : undefined));
+	const badge = leftBadgeEditor(
+		() => (active ? SOFTCODE_STATUS : undefined),
+		() => pi.getThinkingLevel(),
+	);
 
 	function applyThinking(restoredBefore?: string): void {
 		if (cfg.thinking === "keep") return;

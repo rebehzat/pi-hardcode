@@ -91,7 +91,9 @@ export default function hardcode(pi: ExtensionAPI) {
 	let lastDecision: string | undefined;
 	// Editor badge: wraps whatever editor is installed (e.g. UltraCode's) and restores it when turned off.
 	// Status bar keeps its background; the border badge uses the terminal's normal background.
-	const badge = leftBadgeEditor(() => (active ? statusText({ ...cfg, statusBackground: "none" }) : undefined));
+	const badge = leftBadgeEditor(() => (active ? statusText({ ...cfg, statusBackground: "none" }) : undefined),
+		() => pi.getThinkingLevel(),
+	);
 	const installEditorBadge = (ctx: ExtensionContext) => {
 		if (active) badge.install(ctx);
 	};

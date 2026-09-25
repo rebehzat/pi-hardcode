@@ -132,19 +132,43 @@ function fakePi() {
 	const f = fakePi();
 	hardcode(f.pi);
 	let factory: any = (_t: any, _th: any, _k: any) => ({ render: (w: number) => ["─".repeat(w), "typed text"] });
-	const ultracodeFactory = factory;
+	let ultracodeFactory = factory;
 	const ctx = { ...f.ctx(tmp), mode: "tui" };
-	ctx.ui = { ...ctx.ui, getEditorComponent: () => factory, setEditorComponent: (x: any) => (factory = x) };
+	let shown: any;
+	// Like pi: the new editor is created at once and gets the (possibly stale) default border colour.
+	const setEditorComponent = (x: any) => {
+		factory = x;
+		shown = x(null, null, null);
+		shown.borderColor = "stale";
+	};
+	ctx.ui = {
+		...ctx.ui,
+		theme: { getThinkingBorderColor: (l: string) => `colour:${l}` },
+		getEditorComponent: () => factory,
+		setEditorComponent,
+	};
+	ultracodeFactory = (_t: any, _th: any, _k: any) => ({ borderColor: "x", render: (w: number) => ["─".repeat(w), "typed text"] });
+	factory = ultracodeFactory;
 	await f.commands.get("hardcode").handler("on", ctx);
 	assert.notEqual(factory, ultracodeFactory, "editor wrapped");
+	assert.equal(shown.borderColor, "colour:medium", "badge editor coloured for the current thinking level");
 	const lines = factory(null, null, null).render(40);
 	assert.match(lines[0], /^─.*💀.*HARD.*code/);
 	assert.equal(visibleWidth(lines[0]), 40);
 	assert.ok(!lines[0].includes("\x1b[48;"), "border badge has no background");
 	assert.ok(f.state.statuses.get("hardcode")!.includes("\x1b[48;2;255;255;255m"), "status bar stays white");
 	assert.equal(lines[1], "typed text");
+	f.state.thinking = "xhigh"; // e.g. UltraCode raised it while the badge editor was showing
 	await f.commands.get("hardcode").handler("off", ctx);
-	assert.equal(factory, ultracodeFactory, "original editor restored");
+	assert.deepEqual(factory(null, null, null).render(40), ["─".repeat(40), "typed text"], "original editor restored, no badge");
+	assert.equal(shown.borderColor, "colour:xhigh", "restored editor coloured for the current thinking level");
+
+	// SoftCode lowers thinking after its badge editor is showing; pi recolours that editor itself.
+	await f.commands.get("softcode").handler("on", ctx);
+	assert.match(shown.render(40)[0], /🌸/);
+	assert.equal(f.state.thinking, "low");
+	await f.commands.get("softcode").handler("off", ctx);
+	assert.equal(shown.borderColor, "colour:xhigh");
 }
 
 // 🌸 SoftCode: off means off, lowers thinking, mutually exclusive with HARDcode.
