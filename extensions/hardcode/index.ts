@@ -15,8 +15,8 @@
  * Workflow agents get a light depth policy through the PI_HARDCODE_AGENTS env var.
  */
 
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Text } from "@earendil-works/pi-tui";
+import { CustomEditor, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { Text, visibleWidth } from "@earendil-works/pi-tui";
 import { classifyCommand, detectCommands, fingerprint, gitRoot, runCheck, workingDiff } from "./checks.ts";
 import { DEFAULTS, GLOBAL_CONFIG_PATH, type HardcodeConfig, loadConfig, setGlobalConfig } from "./config.ts";
 import { checksSummary, Cycle, currentResults, decide } from "./gate.ts";
@@ -36,6 +36,20 @@ function statusText(cfg: HardcodeConfig): string {
 	const hex = /^#?([0-9a-f]{6})$/i.exec(cfg.statusBackground ?? "")?.[1];
 	const bg = hex ? `\x1b[48;2;${parseInt(hex.slice(0, 2), 16)};${parseInt(hex.slice(2, 4), 16)};${parseInt(hex.slice(4, 6), 16)}m` : "";
 	return `${bg} 💀 \x1b[30mHARD\x1b[31mcode\x1b[39m ${bg ? "\x1b[49m" : ""}`;
+}
+
+type EditorFactory = NonNullable<ReturnType<ExtensionContext["ui"]["getEditorComponent"]>>;
+
+/**
+ * Overlay the badge on the leading run of border characters of the editor's top line,
+ * keeping the visible width exact (pi-tui aborts on over-wide lines).
+ */
+export function withLeftBadge(line: string, badge: string): string {
+	const run = visibleWidth(badge) + 2;
+	const m = new RegExp(`^((?:\\x1b\\[[0-9;]*m)*)(─{${run}})`).exec(line);
+	if (!m) return line;
+	const borderColor = m[1] ?? "";
+	return `${borderColor}─${badge}${borderColor}─${line.slice(m[0].length)}`;
 }
 
 function lastAssistantText(messages: any[]): string {
@@ -80,6 +94,35 @@ export default function hardcode(pi: ExtensionAPI) {
 	let thinkingBefore: string | undefined;
 	let thinkingSet: string | undefined;
 	let lastDecision: string | undefined;
+	// Editor badge: we wrap whatever editor is installed (e.g. UltraCode's) and restore it when turned off.
+	let editorBefore: EditorFactory | undefined;
+	let editorOurs: EditorFactory | undefined;
+
+	function installEditorBadge(ctx: ExtensionContext): void {
+		if (ctx.mode !== "tui" || !active || editorOurs) return;
+		const inner = ctx.ui.getEditorComponent();
+		editorBefore = inner;
+		editorOurs = (tui, theme, keybindings) => {
+			const editor = inner ? inner(tui, theme, keybindings) : new CustomEditor(tui, theme, keybindings);
+			const render = editor.render.bind(editor);
+			editor.render = (width: number) => {
+				const lines = render(width);
+				if (!active || !lines.length) return lines;
+				const out = [...lines];
+				out[0] = withLeftBadge(out[0]!, statusText(cfg));
+				return out;
+			};
+			return editor;
+		};
+		ctx.ui.setEditorComponent(editorOurs);
+	}
+
+	function removeEditorBadge(ctx: ExtensionContext): void {
+		if (!editorOurs) return;
+		// Only put the old editor back if nobody replaced ours in the meantime.
+		if (ctx.mode === "tui" && ctx.ui.getEditorComponent() === editorOurs) ctx.ui.setEditorComponent(editorBefore);
+		editorOurs = editorBefore = undefined;
+	}
 
 	const commandsFor = (ctx: ExtensionContext): string[] =>
 		cfg.verifyCommands.length ? cfg.verifyCommands : detectCommands(gitRoot(ctx.cwd) ?? ctx.cwd);
@@ -261,6 +304,7 @@ export default function hardcode(pi: ExtensionAPI) {
 			}
 		}
 		if (ctx.hasUI) ctx.ui.setStatus("hardcode", statusText(cfg));
+		installEditorBadge(ctx);
 		if (persist) pi.appendEntry(MODE_ENTRY, { on: true });
 	}
 
@@ -277,6 +321,7 @@ export default function hardcode(pi: ExtensionAPI) {
 		thinkingBefore = thinkingSet = undefined;
 		if (ctx.hasUI) {
 			ctx.ui.setStatus("hardcode", undefined);
+			removeEditorBadge(ctx);
 			ctx.ui.setWorkingMessage();
 		}
 		if (persist) pi.appendEntry(MODE_ENTRY, { on: false });
@@ -405,7 +450,14 @@ export default function hardcode(pi: ExtensionAPI) {
 		}
 		const want = restored ?? (!!pi.getFlag("hardcode") || loadConfig(ctx.cwd, ctx.isProjectTrusted()).enabled);
 		if (active) deactivate(ctx, false);
-		if (want) activate(ctx, false);
+		if (want) {
+			activate(ctx, false);
+			// Other extensions (UltraCode) install their editor in session_start too; wrap it once they have.
+			if (ctx.mode === "tui") {
+				removeEditorBadge(ctx);
+				setTimeout(() => installEditorBadge(ctx), 0);
+			}
+		}
 		return undefined;
 	});
 

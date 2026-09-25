@@ -98,6 +98,32 @@ function fakePi() {
 	await f2.emit("session_shutdown", {}, f2.ctx(tmp));
 }
 
+// Editor badge: wraps the existing editor at the left of its top border, restored when off.
+{
+	const { withLeftBadge } = await import("../extensions/hardcode/index.ts");
+	const { visibleWidth } = await import("@earendil-works/pi-tui");
+	const border = "\x1b[38;5;203m" + "─".repeat(60) + " ⚡ultracode ─\x1b[39m";
+	const badged = withLeftBadge(border, "\x1b[48;2;255;255;255m 💀 \x1b[30mHARD\x1b[31mcode\x1b[39m \x1b[49m");
+	assert.equal(visibleWidth(badged), visibleWidth(border), "badge keeps the exact line width");
+	assert.match(badged, /💀[\s\S]*HARD[\s\S]*code[\s\S]*⚡ultracode/);
+	assert.equal(withLeftBadge("too short", "badge"), "too short");
+
+	const f = fakePi();
+	hardcode(f.pi);
+	let factory: any = (_t: any, _th: any, _k: any) => ({ render: (w: number) => ["─".repeat(w), "typed text"] });
+	const ultracodeFactory = factory;
+	const ctx = { ...f.ctx(tmp), mode: "tui" };
+	ctx.ui = { ...ctx.ui, getEditorComponent: () => factory, setEditorComponent: (x: any) => (factory = x) };
+	await f.commands.get("hardcode").handler("on", ctx);
+	assert.notEqual(factory, ultracodeFactory, "editor wrapped");
+	const lines = factory(null, null, null).render(40);
+	assert.match(lines[0], /^─.*💀.*HARD.*code/);
+	assert.equal(visibleWidth(lines[0]), 40);
+	assert.equal(lines[1], "typed text");
+	await f.commands.get("hardcode").handler("off", ctx);
+	assert.equal(factory, ultracodeFactory, "original editor restored");
+}
+
 // Inside a workflow agent: nothing unless the parent asked for the policy.
 {
 	process.env.PI_ULTRACODE_DEPTH = "1";
