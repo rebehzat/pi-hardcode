@@ -19,7 +19,7 @@ pi install git:github.com/rebehzat/pi-hardcode
 | `/hardcode config [key [value]]` | Shows or sets a value in `~/.pi/agent/hardcode.json`. `value` is parsed as JSON; `default` removes the key. |
 | `pi --hardcode` | Starts with HARDcode on. |
 
-While it is on, the status bar shows **💀 HARDcode** on a white background, with `HARD` in black and `code` in red. The same badge (without the background) sits at the left end of the input box's top border (mirroring UltraCode's `⚡ultracode` on the right). HARDcode wraps whatever editor is installed, so the two badges coexist, and restores the original editor when turned off.
+While it is on, the status bar shows **💪 HARDcode**, with `HARD` in white and `code` in red. The same badge sits at the left end of the input box's top border (mirroring UltraCode's `⚡ultracode` on the right). HARDcode wraps whatever editor is installed, so the two badges coexist, and restores the original editor when turned off.
 
 ## What happens when it's on
 
@@ -97,7 +97,7 @@ Off means off here too: only `/softcode`, `--softcode`, and the session start an
 | `reviewerThinking` | `"high"` | |
 | `maxReviewRounds` | `1` | |
 | `workflowAgents` | `"policy"` | Depth policy inside UltraCode workflow agents, or `"off"`. |
-| `statusBackground` | `"#ffffff"` | Background for the status label: any hex color, or `"none"` for no background. |
+| `statusBackground` | `"none"` | Background for the status label: `"none"`, or any hex color such as `"#303030"`. |
 
 Auto-run checks run with `CI=1` (so test runners don't start watch mode), in their own process group, killed on timeout or when you abort.
 

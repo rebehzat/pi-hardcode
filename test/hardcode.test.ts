@@ -75,8 +75,8 @@ function fakePi() {
 	assert.deepEqual(f.active(), ["agent_before_settle", "before_agent_start", "input", "message_end", "session_shutdown", "session_start", "tool_result"]);
 	assert.equal(
 		f.state.statuses.get("hardcode"),
-		"\x1b[48;2;255;255;255m 💀 \x1b[30mHARD\x1b[31mcode\x1b[39m \x1b[49m",
-		"white background, 💀, HARD in black, code in red",
+		" 💪 \x1b[38;2;255;255;255mHARD\x1b[31mcode\x1b[39m ",
+		"no background, 💪, HARD in white, code in red",
 	);
 	assert.equal(f.state.thinking, "medium", "default: thinking stays where it is");
 	assert.equal(process.env.PI_HARDCODE_AGENTS, "policy");
@@ -124,9 +124,9 @@ function fakePi() {
 	const { withLeftBadge } = await import("../extensions/hardcode/index.ts");
 	const { visibleWidth } = await import("@earendil-works/pi-tui");
 	const border = "\x1b[38;5;203m" + "─".repeat(60) + " ⚡ultracode ─\x1b[39m";
-	const badged = withLeftBadge(border, "\x1b[48;2;255;255;255m 💀 \x1b[30mHARD\x1b[31mcode\x1b[39m \x1b[49m");
+	const badged = withLeftBadge(border, " 💪 \x1b[38;2;255;255;255mHARD\x1b[31mcode\x1b[39m ");
 	assert.equal(visibleWidth(badged), visibleWidth(border), "badge keeps the exact line width");
-	assert.match(badged, /💀[\s\S]*HARD[\s\S]*code[\s\S]*⚡ultracode/);
+	assert.match(badged, /💪[\s\S]*HARD[\s\S]*code[\s\S]*⚡ultracode/);
 	assert.equal(withLeftBadge("too short", "badge"), "too short");
 
 	const f = fakePi();
@@ -153,10 +153,9 @@ function fakePi() {
 	assert.notEqual(factory, ultracodeFactory, "editor wrapped");
 	assert.equal(shown.borderColor, "colour:medium", "badge editor coloured for the current thinking level");
 	const lines = factory(null, null, null).render(40);
-	assert.match(lines[0], /^─.*💀.*HARD.*code/);
+	assert.match(lines[0], /^─.*💪.*HARD.*code/);
 	assert.equal(visibleWidth(lines[0]), 40);
 	assert.ok(!lines[0].includes("\x1b[48;"), "border badge has no background");
-	assert.ok(f.state.statuses.get("hardcode")!.includes("\x1b[48;2;255;255;255m"), "status bar stays white");
 	assert.equal(lines[1], "typed text");
 	f.state.thinking = "xhigh"; // e.g. UltraCode raised it while the badge editor was showing
 	await f.commands.get("hardcode").handler("off", ctx);

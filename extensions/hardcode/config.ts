@@ -43,7 +43,7 @@ export interface HardcodeConfig {
 	maxReviewRounds: number;
 	/** Depth policy inside UltraCode workflow agents: "policy" (prompt only) or "off". */
 	workflowAgents: "policy" | "off";
-	/** Status background: a hex color like "#ffffff", or "none". The text is always 💀 "HARD" in black and "code" in red. */
+	/** Status background: "none" or a hex color like "#303030". The text is always 💪 "HARD" in white and "code" in red. */
 	statusBackground: string;
 }
 
@@ -64,7 +64,7 @@ export const DEFAULTS: HardcodeConfig = {
 	reviewerThinking: "high",
 	maxReviewRounds: 1,
 	workflowAgents: "policy",
-	statusBackground: "#ffffff",
+	statusBackground: "none",
 };
 
 export const GLOBAL_CONFIG_PATH = path.join(getAgentDir(), "hardcode.json");
